@@ -1,4 +1,3 @@
-
 export interface TechOption {
   id: string;
   name: string;
@@ -24,6 +23,12 @@ export interface ArchitectureConnection {
   label: string;
 }
 
+export interface GeneratedFile {
+  filename: string;
+  language: string;
+  content: string;
+}
+
 export interface GeneratedPlan {
   architecture: {
     description: string;
@@ -34,7 +39,7 @@ export interface GeneratedPlan {
     name: string;
     reason: string;
   }[];
-  pythonCode: string;
+  generatedFiles: GeneratedFile[];
   suggestions: {
     cost: string;
     timeline: string;

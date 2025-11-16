@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
 
 interface CodeBlockProps {
   title: string;
   code: string;
+  language?: string;
 }
 
-const CodeBlock: React.FC<CodeBlockProps> = ({ title, code }) => {
+const CodeBlock: React.FC<CodeBlockProps> = ({ title, code, language }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -16,8 +16,8 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ title, code }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-2xl shadow-lg h-full flex flex-col">
-      <div className="flex justify-between items-center p-4 border-b border-gray-700">
+    <div className="h-full flex flex-col">
+      <div className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
         <h3 className="text-lg font-semibold text-gray-200">{title}</h3>
         <button
           onClick={handleCopy}
@@ -27,7 +27,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ title, code }) => {
         </button>
       </div>
       <div className="p-4 overflow-auto flex-1">
-        <pre><code className="text-sm text-gray-300 font-mono whitespace-pre-wrap">{code}</code></pre>
+        <pre><code className={`text-sm text-gray-300 font-mono whitespace-pre-wrap language-${language}`}>{code}</code></pre>
       </div>
     </div>
   );

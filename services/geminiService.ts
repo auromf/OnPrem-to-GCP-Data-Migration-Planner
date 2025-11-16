@@ -61,7 +61,18 @@ const responseSchema = {
                 required: ["name", "reason"]
             }
         },
-        pythonCode: { type: Type.STRING },
+        generatedFiles: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    filename: { type: Type.STRING },
+                    language: { type: Type.STRING },
+                    content: { type: Type.STRING }
+                },
+                required: ["filename", "language", "content"]
+            }
+        },
         suggestions: {
             type: Type.OBJECT,
             properties: {
@@ -77,40 +88,53 @@ const responseSchema = {
             required: ["cost", "timeline", "improvements", "monitoring", "dataQualityAndLineage"]
         }
     },
-    required: ["architecture", "gcpServices", "pythonCode", "suggestions"]
+    required: ["architecture", "gcpServices", "generatedFiles", "suggestions"]
 };
 
 export async function generateMigrationPlan(request: PlanRequest): Promise<GeneratedPlan> {
   const { source, sink, sourceSchema, destinationSchema, pipelineType } = request;
 
-  // FIX: Escaped backticks within the template literal to prevent parsing errors. Unescaped backticks were causing the TS parser to treat parts of the string as code.
   const prompt = `
-    You are an expert GCP Data Migration Architect. Your task is to generate a comprehensive data migration plan.
-    
+    You are an expert GCP Enterprise Data Architect. Your task is to generate a comprehensive, production-ready data migration project structure.
+
     Migration Details:
     - Source System: ${source}
     - Destination GCP Service: ${sink}
     - Pipeline Type: ${pipelineType}
     - Source Schema: ${sourceSchema ? `\n\`\`\`sql\n${sourceSchema}\n\`\`\`` : 'Not provided.'}
     - Destination Schema: ${destinationSchema ? `\n\`\`\`\n${destinationSchema}\n\`\`\`` : 'Not provided.'}
-    
+
     Based on these details, provide the following in a structured JSON format:
-    
+
     1.  **Architecture**:
         *   \`description\`: A high-level overview of the proposed migration architecture.
-        *   \`components\`: An array of key components in the architecture. Each component must have an 'id' (a unique lowercase-hyphenated string), 'name' (e.g., 'Oracle DB'), 'type' (e.g., 'source', 'gcp_service', 'transform'), and 'description'. Include the source, sink, and all intermediary GCP services (like Dataflow, Pub/Sub, Composer). Also include components for logging, monitoring, data quality, and lineage (e.g., Cloud Logging, Datacatalog).
-        *   \`connections\`: An array of connections between components, using the 'id' fields. Each connection needs 'from', 'to', and a 'label' describing the data flow (e.g., 'JDBC Connection', 'Batch Load').
+        *   \`components\`: An array of key components in the architecture. Each component must have an 'id', 'name', 'type', and 'description'. Include source, sink, intermediary services (Dataflow, Pub/Sub, Composer), and components for logging, monitoring, data quality, and lineage (Cloud Logging, Datacatalog).
+        *   \`connections\`: An array of connections between components.
 
     2.  **GCP Services**: A list of all recommended GCP services with a brief justification for each.
 
-    3.  **Python Code**: A Python code snippet for the core data pipeline logic. If it's a batch pipeline, use Apache Beam with the Dataflow runner. If streaming, show a basic streaming pipeline structure.
+    3.  **Generated Files**: An array of file objects for a complete project. Each object must have 'filename', 'language', and 'content'. Create the following files:
+        *   \`README.md\`: (language: markdown) Project overview, architecture summary, setup instructions (virtual env, pip install), and how to run the pipeline.
+        *   \`requirements.txt\`: (language: text) List of necessary Python packages (e.g., apache-beam[gcp], sqlalchemy, google-cloud-secret-manager).
+        *   \`run.sh\`: (language: shell) A simple bash script to set up a virtual environment, install dependencies, and execute the main pipeline script.
+        *   \`src/config.py\`: (language: python) A configuration file. Include placeholders for GCP Project ID, source/sink connection details, and other parameters. Use a function to fetch secrets from Google Secret Manager. DO NOT hardcode credentials.
+        *   \`src/main.py\`: (language: python) The main Apache Beam pipeline script. It should orchestrate the entire ETL process:
+            - Import other modules.
+            - Define pipeline options.
+            - Read data from the source (use a custom PTransform).
+            - Apply transformations and data quality checks from other modules.
+            - Implement a basic CDC logic (e.g., using a watermark column from config).
+            - Write valid data to the destination sink and errored records to a dead-letter queue in GCS.
+        *   \`src/transformations.py\`: (language: python) A module containing data cleaning and business logic transformations as a Beam PTransform or DoFn.
+        *   \`src/dq_checks.py\`: (language: python) A module for data quality checks. Implement it as a PTransform that outputs two PCollections: one for valid records and one for invalid records, including the reason for failure.
+        *   \`src/cdc_logic.py\`: (language: python) A module that defines a PTransform for reading data incrementally from the source based on a timestamp or ID column (high-watermark CDC).
 
     4.  **Suggestions**:
-        *   \`cost\`: A high-level summary of potential cost factors and optimization tips.
-        *   \`timeline\`: A rough estimate of the migration timeline, broken down into phases.
-        *   \`improvements\`: A list of 3-5 key suggestions for improving the migration process (e.g., performance tuning, security best practices).
-        *   \`monitoring\`: A strategy for logging and monitoring the pipeline using GCP services.
-        *   \`dataQualityAndLineage\`: A strategy for ensuring data quality and tracking data lineage.
+        *   \`cost\`: High-level cost factors and optimization tips.
+        *   \`timeline\`: A rough migration timeline.
+        *   \`improvements\`: Key suggestions for the migration process.
+        *   \`monitoring\`: Strategy for logging and monitoring.
+        *   \`dataQualityAndLineage\`: Strategy for data quality and lineage.
   `;
   
   try {
