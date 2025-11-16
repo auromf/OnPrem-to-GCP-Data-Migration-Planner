@@ -1,0 +1,5 @@
+{
+  "name": "GCP Data Migration Planner",
+  "description": "An intelligent tool to help you plan on-premise data migrations to Google Cloud. Select your source and sink, provide schema details, and get a complete migration plan including architecture diagrams, code, cost estimates, and best practices, all powered by Gemini.",
+  "requestFramePermissions": []
+}
